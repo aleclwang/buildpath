@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'core',
     'ingestion',
     'items',
+    'matches',
 ]
 
 MIDDLEWARE = [

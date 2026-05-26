@@ -2,7 +2,7 @@ from django.db import models
 
 # Create your models here.
 class Item(models.Model):
-    riot_id = models.IntegerField(unique=True)
+    riot_id = models.IntegerField(primary_key=True)
 
     name = models.CharField(max_length=255)
     description = models.TextField()
@@ -22,7 +22,7 @@ class Item(models.Model):
     maps = models.JSONField(default=dict)
     stats = models.JSONField(default=dict)
 
-    depth = models.IntegerField()
+    depth = models.IntegerField(null=True)
 
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
