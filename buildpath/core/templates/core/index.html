@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buildpath</title>
+</head>
+<body style="background-color: #222; margin: 0;">
+    <h1 style="color: white; text-align: center; font-size: 48px; margin-top: 0; padding-top: 32px;">Buildpath</h1>
+    <div style="display: flex; justify-content: center;">
+        <select id="champion-select">
+            <option value="">Select Champion</option>
+        </select>
+    </div>
+    <div id="rows-container" style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 24px;"></div>
+    <script>
+        const MAX_SLOTS = 6;
+        let champion = "";
+        let selectedPath = [];
+
+        fetch("/api/champions/")
+            .then(res => res.json())
+            .then(champions => {
+                const select = document.getElementById("champion-select");
+                champions.forEach(name => {
+                    const opt = document.createElement("option");
+                    opt.value = name;
+                    opt.textContent = name;
+                    select.appendChild(opt);
+                });
+            });
+
+        function buildItemDiv(item, slot) {
+            const div = document.createElement("div");
+            div.style.cssText = "display:flex;flex-direction:column;align-items:center;color:white;font-size:12px;cursor:pointer;";
+            div.innerHTML = `<img src="${item.icon}" width="48" height="48" title="${item.count} games" style="box-sizing:border-box;"><span>${item.count}</span><span>${item.winrate}%</span>`;
+            div.addEventListener("click", () => onItemClick(slot, item, div));
+            return div;
+        }
+
+        function onItemClick(slot, item, div) {
+            const wasSelected = selectedPath[slot] === item.item_id;
+
+            // Truncate path at this slot
+            selectedPath = selectedPath.slice(0, slot);
+            clearRowsFrom(slot + 1);
+
+            // Deselect all items in this row
+            const scroll = document.getElementById(`scroll-${slot}`);
+            scroll.querySelectorAll("img").forEach(img => img.style.border = "none");
+
+            if (wasSelected) return; // toggle off
+
+            // Select this item
+            div.querySelector("img").style.border = "3px solid red";
+            selectedPath[slot] = item.item_id;
+
+            if (slot + 1 < MAX_SLOTS) loadRow(slot + 1);
+        }
+
+        function clearRowsFrom(slot) {
+            for (let i = slot; i < MAX_SLOTS; i++) {
+                const row = document.getElementById(`row-${i}`);
+                if (row) row.remove();
+            }
+        }
+
+        function loadRow(slot) {
+            const container = document.getElementById("rows-container");
+            let row = document.getElementById(`row-${slot}`);
+            if (!row) {
+                row = document.createElement("div");
+                row.id = `row-${slot}`;
+                row.style.cssText = "display:flex;overflow-x:auto;max-width:80vw;gap:8px;padding:8px;";
+                row.innerHTML = `<div id="scroll-${slot}" style="display:flex;gap:8px;"></div>`;
+                container.appendChild(row);
+            }
+            const scroll = document.getElementById(`scroll-${slot}`);
+            scroll.innerHTML = "";
+
+            const path = selectedPath.slice(0, slot).join(",");
+            const url = `/api/item-frequencies/?champion=${encodeURIComponent(champion)}&slot=${slot}` + (path ? `&path=${path}` : "");
+            fetch(url)
+                .then(res => res.json())
+                .then(items => items.forEach(item => scroll.appendChild(buildItemDiv(item, slot))));
+        }
+
+        document.getElementById("champion-select").addEventListener("change", function () {
+            champion = this.value;
+            selectedPath = [];
+            document.getElementById("rows-container").innerHTML = "";
+            if (!champion) return;
+            loadRow(0);
+        });
+    </script>
+</body>
+</html>

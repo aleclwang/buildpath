@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'ingestion',
     'items',
     'matches',
+    'champions',
 ]
 
 MIDDLEWARE = [

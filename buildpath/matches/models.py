@@ -36,3 +36,5 @@ class Participant(models.Model):
     item4 = models.IntegerField(null=True)
     item5 = models.IntegerField(null=True)
     item6 = models.IntegerField(null=True)
+    build_order = models.JSONField(default=list)
+    core_build_order = models.JSONField(default=list)

@@ -10,3 +10,9 @@ def get_items(version):
 
 def get_icon_url(version, filename):
     return f"https://ddragon.leagueoflegends.com/cdn/{version}/img/item/{filename}"
+
+
+def get_champions():
+    version = get_latest_version()
+    url = f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/champion.json"
+    return version, request(url)["data"]
