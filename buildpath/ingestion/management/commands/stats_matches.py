@@ -15,7 +15,7 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         counts = {
             row["rank"]: row["count"]
-            for row in Match.objects.values("rank").annotate(count=Count("id"))
+            for row in Match.objects.values("rank").annotate(count=Count("match_id"))
         }
 
         total = 0
