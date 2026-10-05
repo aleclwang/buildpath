@@ -167,6 +167,10 @@ Internet ─► Caddy :80/:443 ──(docker network "web")──► buildpath-w
 | `deploy/infra/Caddyfile` | One block per project's domain |
 | `buildpath/docker-compose.prod.yml` | The buildpath app: gunicorn, no published ports, joins the `web` network |
 | `deploy/push-db.sh` | Copies your local database to the server, replacing its copy |
+| `deploy/deploy.sh` | Pulls `main` and rebuilds the app on the server (run by CI/CD) |
+| `.github/workflows/ci-cd.yml` | Checks every push; deploys `main` when the checks pass |
+
+The workflow logs in with a dedicated deploy key, stored as the `SSH_PRIVATE_KEY` secret, with the server's host keys in `SSH_KNOWN_HOSTS`. On the server, that key is restricted in `~/.ssh/authorized_keys` to a single forced command (pull, then `deploy.sh`), so it can't open a shell or forward ports.
 
 ### First-time setup
 
@@ -203,7 +207,7 @@ SERVER=user@your-server deploy/push-db.sh
 
 ### Updating
 
-- **Code:** on the server, run `cd /srv/buildpath && git pull && cd buildpath && docker compose -f docker-compose.prod.yml up -d --build`. Migrations run on startup.
+- **Code:** push to `main`. GitHub Actions (`.github/workflows/ci-cd.yml`) runs Django checks, the migrations check, tests and a Docker build. If they pass, it SSHes into the server and runs `deploy/deploy.sh`, which pulls, rebuilds and waits for the app to respond. Pull requests only run the checks. To redeploy without a new commit, use **Actions → CI/CD → Run workflow**, or run `bash /srv/buildpath/deploy/deploy.sh` on the server.
 - **Data:** crawl locally, then run `SERVER=user@your-server deploy/push-db.sh`. The site is down for the minute or so the restore takes.
 
 ## Stack
