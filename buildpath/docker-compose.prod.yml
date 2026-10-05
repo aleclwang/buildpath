@@ -1,0 +1,18 @@
+# Production: gunicorn behind the shared Caddy + Postgres in deploy/infra.
+# Usage (on the server, from buildpath/): docker compose -f docker-compose.prod.yml up -d --build
+services:
+  web:
+    build: .
+    container_name: buildpath-web
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn buildpath.wsgi -b 0.0.0.0:8000 -w 2 --access-logfile -"
+    env_file: .env
+    restart: unless-stopped
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

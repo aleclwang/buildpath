@@ -1,0 +1,6 @@
+# One block per project. Caddy fetches HTTPS certificates automatically.
+# Replace the hostname with your domain (or <server-ip>.sslip.io until you have one).
+buildpath.example.com {
+	encode gzip
+	reverse_proxy buildpath-web:8000
+}

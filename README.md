@@ -100,17 +100,7 @@ A **core item** is an item that builds into nothing (`into_items = []`) and cost
 
 ### Configuration
 
-Create `buildpath/.env`:
-
-```env
-API_KEY=RGAPI-...        # Riot developer key
-DB_NAME=buildpath_db
-DB_USER=buildpath_user
-DB_PASSWORD=...
-DB_HOST=localhost
-DB_PORT=5432
-DEBUG=True
-```
+Copy `buildpath/.env.example` to `buildpath/.env` and fill it in. For local development, keep `DEBUG=True`; `SECRET_KEY` can stay empty while `DEBUG` is on. `API_KEY` (a Riot developer key) is only needed for the crawlers.
 
 ### With Docker (recommended)
 
@@ -162,6 +152,60 @@ python manage.py clear_items
 
 A typical first run is `sync_items`, `sync_champions`, then `sync_matches` (or `sync_apex`), then `ingest_timelines`.
 
+## Deployment
+
+Production runs on a single server that can host several projects. One shared Caddy serves HTTPS and routes each domain to its project. One shared Postgres holds a separate database and user per project.
+
+```
+Internet ─► Caddy :80/:443 ──(docker network "web")──► buildpath-web (gunicorn :8000)
+                                                    └─► postgres (one DB + user per project)
+```
+
+| File | Purpose |
+| --- | --- |
+| `deploy/infra/docker-compose.yml` | Shared Caddy + Postgres (lives at `/srv/infra` on the server) |
+| `deploy/infra/Caddyfile` | One block per project's domain |
+| `buildpath/docker-compose.prod.yml` | The buildpath app: gunicorn, no published ports, joins the `web` network |
+| `deploy/push-db.sh` | Copies your local database to the server, replacing its copy |
+
+### First-time setup
+
+On the server (Ubuntu with Docker installed; firewall allows only 22, 80, 443):
+
+```sh
+# Shared services
+sudo mkdir -p /srv && sudo chown $USER /srv
+git clone https://github.com/aleclwang/buildpath.git /srv/buildpath
+cp -r /srv/buildpath/deploy/infra /srv/infra
+cd /srv/infra
+cp .env.example .env               # set POSTGRES_PASSWORD
+nano Caddyfile                     # set your domain
+docker network create web
+docker compose up -d
+
+# Database for buildpath
+docker compose exec postgres psql -U postgres \
+  -c "CREATE ROLE buildpath_user LOGIN PASSWORD '<strong password>';" \
+  -c "CREATE DATABASE buildpath_db OWNER buildpath_user;"
+
+# App config
+cd /srv/buildpath/buildpath
+cp .env.example .env               # SECRET_KEY, DEBUG=False, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS,
+                                   # DB_PASSWORD, DB_HOST=postgres
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Then load the data from your PC (Git Bash, repo root, with local Docker running):
+
+```sh
+SERVER=user@your-server deploy/push-db.sh
+```
+
+### Updating
+
+- **Code:** on the server, run `cd /srv/buildpath && git pull && cd buildpath && docker compose -f docker-compose.prod.yml up -d --build`. Migrations run on startup.
+- **Data:** crawl locally, then run `SERVER=user@your-server deploy/push-db.sh`. The site is down for the minute or so the restore takes.
+
 ## Stack
 
-Python 3.14 · Django 6.0 · PostgreSQL 18 · requests · Docker Compose
+Python 3.14 · Django 6.0 · PostgreSQL 18 · requests · Docker Compose · gunicorn · Caddy
