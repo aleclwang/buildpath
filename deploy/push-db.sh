@@ -26,13 +26,17 @@ rm "$DUMP"
 echo "[push-db] Restoring on server (site is briefly down)..."
 ssh "$SERVER" bash -s <<EOF
 set -euo pipefail
-docker compose -f $REMOTE_APP/docker-compose.prod.yml stop web
-docker compose -f $REMOTE_INFRA/docker-compose.yml cp /tmp/$DUMP postgres:/tmp/$DUMP
+# This script arrives on stdin, so every docker command gets </dev/null;
+# otherwise it reads the rest of the script as its own input and the
+# remaining lines never run.
+# Restart the app even if the restore fails (--single-transaction keeps the old data).
+trap 'docker compose -f $REMOTE_APP/docker-compose.prod.yml start web </dev/null' EXIT
+docker compose -f $REMOTE_APP/docker-compose.prod.yml stop web </dev/null
+docker compose -f $REMOTE_INFRA/docker-compose.yml cp /tmp/$DUMP postgres:/tmp/$DUMP </dev/null
 docker compose -f $REMOTE_INFRA/docker-compose.yml exec -T postgres \
-    pg_restore -U $DB_USER -d $DB_NAME --clean --if-exists --no-owner --no-privileges --single-transaction /tmp/$DUMP
-docker compose -f $REMOTE_INFRA/docker-compose.yml exec -T postgres rm /tmp/$DUMP
+    pg_restore -U $DB_USER -d $DB_NAME --clean --if-exists --no-owner --no-privileges --single-transaction /tmp/$DUMP </dev/null
+docker compose -f $REMOTE_INFRA/docker-compose.yml exec -T postgres rm /tmp/$DUMP </dev/null
 rm /tmp/$DUMP
-docker compose -f $REMOTE_APP/docker-compose.prod.yml start web
 EOF
 
 echo "[push-db] Done."
