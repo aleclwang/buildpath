@@ -22,7 +22,7 @@ class Participant(models.Model):
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column="puuid")
 
-    champion = models.CharField(max_length=50, db_index=True)
+    champion = models.CharField(max_length=50)
     win = models.BooleanField()
 
     kills = models.IntegerField()
@@ -38,3 +38,14 @@ class Participant(models.Model):
     item6 = models.IntegerField(null=True)
     build_order = models.JSONField(default=list)
     core_build_order = models.JSONField(default=list)
+
+    class Meta:
+        indexes = [
+            # Covering index for the item-frequency API: champion lookups are
+            # answered from the index alone, without visiting the wide table rows.
+            models.Index(
+                fields=["champion"],
+                include=["win", "core_build_order", "match"],
+                name="participant_champ_cover_idx",
+            ),
+        ]
